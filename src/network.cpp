@@ -1,12 +1,13 @@
 #include "network.h"
 #include <algorithm>
 #include "random.h"
+#include <iostream>
 
 // - - - - - - - - - - - METHODES - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 RandomNumbers rng;
 
-void Network::resize(const size_t& s){
+void Network::resize(const size_t& s) {		
 	
 	values.clear();
 	values.resize(s);
@@ -15,26 +16,38 @@ void Network::resize(const size_t& s){
 
 
 
-bool Network::add_link(const size_t& a, const size_t& b){
+bool Network::add_link(const size_t& a, const size_t& b){		
 	
-	if ((std::max(a, b) < values.size()) and (a != b)) {
+	if ((std::find(values.begin(), values.end(), a) == values.end())
+	or (std::find(values.begin(), values.end(), b) == values.end())) { throw std::string("Impossibilité de créer un lien : l'un des noeuds n'existe pas!"); }
+	
+	if (a == b) { throw std::string("Impossibilité de créer un lien : les deux indices passés en arguments sont les mêmes!"); }
+	
+	std::vector<size_t> voisins(neighbors(a));
+	
+	for (auto v:voisins) {
 		
-		links.emplace(a, b);
-		links.emplace(b, a);
+		if (v == b) { throw std::string("Impossibilité de créer un lien : Ce lien existe déjà!");  }
+	}
+	
+	try { 
 		
-		return true;
+		} catch (std::string &e) {
 		
-	} else {
-		
-		throw std::string("Vous tentez de créer un lien entre un ou deux noeud(s) qui n'existent pas");
+		std::cerr << e << std::endl;
 		
 		return false;
-	}	
+	}
+	
+	links.emplace(a, b);
+	links.emplace(b, a);
+		
+	return true;
 }
 
 
 
-size_t Network::random_connect(const double& m){
+size_t Network::random_connect(const double& n){	
 	
 	links.clear();
 	std::vector<size_t> indices;
@@ -46,15 +59,18 @@ size_t Network::random_connect(const double& m){
 			
 	for (size_t i(0); i < values.size(); i += 1) {
 		
-		int n(rng.poisson(m));
+		int m(rng.poisson(n));
 		
 		rng.shuffle(indices);
 		
 		compteur += 1;
 				
-		for (int j(0); j < n ; j += 1) {
+		for (int j(0); j < m ; j += 1) {
 			
-			add_link(indices[j], i);
+			bool lien(false);
+			while (!lien) {
+				lien = add_link(indices[j], i);
+			}
 		}		
 	}	
 	
@@ -65,16 +81,27 @@ size_t Network::random_connect(const double& m){
 
 size_t Network::set_values(const std::vector<double>& tab){
 	
-	if (!(tab.empty())) {
+	
+	if (tab.size() < values.size()){
+	
+		for (size_t i(0); i < tab.size(); i++) {
+			
+			values[i] = tab[i];
+		}
+	
+	} else if (tab.size() >= values.size()) {
 		
+		values.clear();
 		values = tab;
 		
 		return tab.size();
 		
-	} else {
-		
+	} else if (tab.empty()) {
+	
 		return 0;
 	}
+	
+	return tab.size();
 }
 
 
@@ -95,16 +122,18 @@ size_t Network::size() const{
 
 size_t Network::degree(const size_t& n) const{
 	
-	if (n < values.size()) {
+	if (n > values.size()) { throw std::string("Impossible de donner le degré : Vous essayez d'accéder à un noeud qui n'existe pas!"); }
+	
+	try {
 		
-		return (links.count(n));
+	} catch (std::string &e) {
 		
-	} else {
-		
-		throw std::string("Vous essayez d'accéder à un noeud qui n'existe pas!");
+		std::cerr << e << std::endl;
 		
 		return 0;
-	}		
+	}
+		
+	return (links.count(n));		
 }
 
 
@@ -118,36 +147,41 @@ double Network::value(const size_t& n) const{
 
 std::vector<double> Network::sorted_values() const{
 	
-	if (!(values.empty())) {
-		
-		std::vector<double> val_s(values);
-		
-		std::sort(val_s.begin(), val_s.end());
-		std::reverse(val_s.begin(), val_s.end());
-		
-		return val_s;
+	if (values.empty()) { throw std::string("Impossible de trier les valeurs : Le réseau est vide!"); }
 	
-	} else {
+	try{
+	
+	} catch (std::string &e) {
 		
-		throw std::string("Vous ne pouvez pas trier un réseau vide!");
+		std::cerr << e << std::endl;
+		
+		return values;
 	}
 		
-	return values;
+	std::vector<double> val_s(values);
+		
+	std::sort(val_s.begin(), val_s.end());
+	std::reverse(val_s.begin(), val_s.end());
+		
+	return val_s;
 }
 
 
 
 std::vector<size_t> Network::neighbors(const size_t& n) const{		
 	
-	std::vector<size_t> voisins;
 	
-	if (n < values.size()) {
+	if (n > values.size()) { throw std::string("Impossible de déterminer les voisins : ce noeud n'existe pas"); 
+		
+	} else {
 	
-		auto val = links.equal_range(n);
+		std::vector<size_t> voisins;
 			
+		auto val = links.equal_range(n);
+				
 		for (auto i = val.first; i != val.second; ++i){
 				
-			voisins.push_back((*i).second);				
+			voisins.push_back(i->second);				
 		}
 		
 		if (!(voisins.empty())) {
@@ -156,13 +190,21 @@ std::vector<size_t> Network::neighbors(const size_t& n) const{
 		
 		} else {
 		
-			throw std::string("Ce noeud n'a aucun voisin!");
+			throw std::string("Impossible de déterminer les voisins : Ce noeud n'a aucun voisin!");
 		}
+	}
+	
+	try { 
 		
-	} else {
+	} catch (std::string &e) {
 		
-		throw std::string("Vous essayez d'accéder à un noeud qui n'existe pas!");
-	}	
+		std::cerr << e << std::endl;
+		
+		std::vector<size_t> voisins;
+		
+		return voisins;
+	}
+	
 }	
 
 
