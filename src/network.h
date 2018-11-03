@@ -21,6 +21,8 @@ public:
   Adds a bidirectional link between two nodes
   @param[in] a,b the indexes if the two nodes 
   @param[out] success the link was succesfully inserted (true if both nodes exist and the link did not exist yet)
+  
+  --> If the indexes exists in values, if we aren't trying to create a link between the same node and if the link doesn't exist yet then it is created in both directions
  */
     bool add_link(const size_t&, const size_t&);
 /*! Creates random connections between nodes: each node *n* will be linked with *degree(n)* other nodes (randomly chosen),
@@ -29,7 +31,9 @@ public:
   All previous links are erased first.
   @param[in] mean_deg the average of the Poisson distribution,
   @param[out] number of links created.
- */
+  
+  --> I create a vector containing all of the indexes present in values (just a vector containing the numbers 0 to values.size()-1) and I use this vector to create randomly choosen links by shuffling it every time I have to create a new link. I control that no impossible links are created with a while loop and I count the actual number of created links with the variable "compteur".
+  */
     size_t random_connect(const double&);
 /*! Resets node values with a vector of *n* new values.
   If the current size is *s* and *n<s* then only the first *n* values are changed.
